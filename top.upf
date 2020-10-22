@@ -1,0 +1,196 @@
+
+#set_design_top set the power top of the design
+#Static  tools do not apply  their rule checks for hierarchy above power top.
+#Simulation tools consider hierarchy above power top belongs to testbench hierarchy
+set_design_top top
+
+#Power domain means sub regions of the design where same power behavior is expected
+#Any block where the power behavior is desired to be different will require a power domain
+#Power behavior is defined with respect to power domains
+#In our design three sub regions can be identified
+#	Top module – sub region1
+#	A and B/C instances – sub region2
+#	B instance – sub region3
+		create_power_domain PD_TOP -elements {.} -available_supplies {SS1 SS2} -supply {primary SS1}
+create_power_domain PD_RX -elements {U1 U2 U3} -available_supplies {SS1 SS1_SW} -supply {primary SS1_SW}
+           create_power_domain PD_CPU -elements ${cpu_list} -available_supplies {SS1} -supply {primary SS1}
+create_power_domain PD_TOP -elements {.} -supply {primary SS1}
+create_power_domain PD_RX -elements {U1 U2 U3} -supply {primary SS1_SW}
+create_power_domain PD_CPU -elements ${cpu_list} -supply {primary SS1}
+
+#Creates a supply ports at specified scope or level of hierarchy
+#In our design 4 different supply ports are required
+#	Supply port with 1.4 voltage – VDD1
+#	Supply port with 1.5 voltage – VDD2
+#	Supply port with 1.3 voltage – VDD3
+#	Ground supply – VSS
+create_supply_port VDD1
+create_supply_port VDD2
+create_supply_port VDD3
+create_supply_port VSS
+
+#Creates a logical representation of a power or ground supply
+#These nets route through out the design and supply power to the design
+create_supply_net VDD1_net
+create_supply_net VDD2_net
+create_supply_net VDD3_net
+create_supply_net VSS_net
+
+#Using connect_supply_net command supply_nets connected to supply_ports
+connect_supply_net VDD1_net -ports {VDD1}
+connect_supply_net VDD2_net -ports {VDD2}
+connect_supply_net VDD3_net -ports {VDD3}
+connect_supply_net VSS_net -ports {VSS}
+
+#Create a power switch for switchable power domains
+create_supply_net PSW_net
+create_power_switch PSW -input_supply_port {in VDD3_net} \
+					-output_supply_port {out PSW_net} \
+					-control_port {ctrl psw_ctrl} \
+					-on_state {ON in ctrl} \
+					-off_state {OFF !ctrl} \
+					-ack_port {ack0 ack} \
+					-domain PD2
+
+#connect supply_nets to power domains
+set_domain_supply_net PD_TOP -primary_power_net VDD1_net -primary_ground_net VSS_net
+set_domain_supply_net PD1 -primary_power_net VDD2_net -primary_ground_net VSS_net
+set_domain_supply_net PD2 -primary_power_net PSW_net -primary_ground_net VSS_net
+
+
+# Bitcoin v2.0
+create_power_domain TOP -supply {primary SSH} -include_scope
+create_power_domain PD_SIPO -supply {primary HV_SSH_SIPO_SW} -elements {sipo_bit}
+create_power_domain PD_PISO -supply {primary HV_SSH_PISO_SW} -elements {piso_bit}
+# -supply test  
+# Below style is not supported yet
+#create_power_domain PD1 -elements {.} -supply {ssh1} -supply {ssh2}
+set mem_list [find_objects . -pattern {SRAM*} -object_type model -leaf_only -case_insensitive]
+set temp1 test
+   set temp2 "test"
+set temp3 "${a1} ${a2}"
+
+# [Variable]
+   set ip_list [find_objects . -pattern ip_* -object_type model -ignore_case -leaf_only]
+set mem_list [find_objects . -pattern RAM_* -object_type inst -regexp -transitive -non_leaf]
+set mem_list2 [find_objects . -pattern RAM_* -object_type port -exact]
+
+
+# Bitcoin v2.0
+# SUPPLY SETS (EXPLICIT)
+create_supply_set SSH
+create_supply_set HV_SSH_SIPO_SW
+create_supply_set HV_SSH_PISO_SW
+create_supply_set SS_MEM_SW
+
+
+create_supply_net VDD -resolve parallel
+create_supply_port VDD_out -direction out
+connect_supply_net VDD -ports {VDD_out}
+
+
+
+create_supply_set SS1 -function {power VDD} -function {ground VSS} -function {nwell nwell_ss1} -function {pwell pwell_ss1} -update
+create_supply_set SS1_SW -function {power VDD} -function {ground VSS1} -function {nwell nwell_ss1_sw} -update
+
+## New case 2020/10/06 ---------------------------------------------------------------------------------------------------------------------------
+set_design_attributes -elements . -attribute legacy_block  {true}
+create_power_domain TOP
+create_power_domain PD1 -elements {ua}
+create_power_domain PD2 -elements {ub}
+
+create_supply_net  VDD
+create_supply_port VDD
+connect_supply_net VDD  -ports VDD
+add_port_state     VDD  -state {VDD_HV 0.85} -state {VDD_LV 0.78} -state {VDD_OFF off}
+
+create_supply_net  VDD1
+create_supply_port VDD1
+connect_supply_net VDD1 -ports VDD1
+add_port_state     VDD1 -state {VDD1_HV 0.85} -state {VDD1_LV 0.78} -state {VDD1_OFF off} 
+
+create_supply_net  VDD2
+create_supply_port VDD2
+connect_supply_net VDD2 -ports VDD2
+add_port_state     VDD2 -state {VDD2_HV 0.85} -state {VDD2_LV 0.78} -state {VDD2_OFF off} 
+
+create_supply_net  VSS 
+create_supply_port VSS 
+connect_supply_net VSS  -ports VSS
+add_port_state     VSS  -state {VSS_00 0.0}
+
+create_supply_set SS_TOP -function {power VDD} -function {ground VSS}
+create_supply_set SS_PD1 -function {power VDD1} -function {ground VSS}
+create_supply_set SS_PD2 -function {power VDD2} -function {ground VSS}
+
+set_domain_supply_net TOP -primary_power_net VDD -primary_ground_net VSS
+set_domain_supply_net PD1 -primary_power_net VDD1 -primary_ground_net VSS
+set_domain_supply_net PD2 -primary_power_net VDD2 -primary_ground_net VSS
+
+create_pst pst1 -supplies           {VDD    VDD1    VDD2    VSS    }
+add_pst_state s1 -pst pst1 -state   {VDD_LV VDD1_LV VDD2_LV VSS_00 }
+add_pst_state s2 -pst pst1 -state   {VDD_LV VDD1_OFF VDD2_LV VSS_00}
+
+#set_isolation iso_42 -domain PD1 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_41 -domain PD1 -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_40 -domain PD1 -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_39 -domain PD1 -source SS_PD1 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_38 -domain PD1 -sink SS_PD2   -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_37 -domain PD1 -source SS_PD1 -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_36 -domain PD1 -source SS_PD1 -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_35 -domain PD1 -no_isolation
+#set_isolation iso_34 -domain PD1 -no_isolation -diff_supply_only true 
+#set_isolation iso_33 -domain PD1 -no_isolation -sink SS_PD2 
+#set_isolation iso_32 -domain PD1 -no_isolation -source SS_PD1
+#set_isolation iso_31 -domain PD1 -no_isolation -sink SS_PD2   -diff_supply_only true
+#set_isolation iso_30 -domain PD1 -no_isolation -source SS_PD1 -diff_supply_only true 
+#set_isolation iso_29 -domain PD1 -no_isolation -source SS_PD1 -sink SS_PD2 
+# 
+#set_isolation iso_28 -domain PD1 -elements {ua} -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_27 -domain PD1 -elements {ua} -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_26 -domain PD1 -elements {ua} -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_25 -domain PD1 -elements {ua} -source SS_PD1 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_24 -domain PD1 -elements {ua} -sink SS_PD2   -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_23 -domain PD1 -elements {ua} -source SS_PD1 -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_22 -domain PD1 -elements {ua} -source SS_PD1 -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_21 -domain PD1 -elements {ua} -no_isolation
+#set_isolation iso_20 -domain PD1 -elements {ua} -no_isolation -diff_supply_only true 
+#set_isolation iso_19 -domain PD1 -elements {ua} -no_isolation -sink SS_PD2 
+#set_isolation iso_18 -domain PD1 -elements {ua} -no_isolation -source SS_PD1
+#set_isolation iso_17 -domain PD1 -elements {ua} -no_isolation -sink SS_PD2   -diff_supply_only true
+#set_isolation iso_16 -domain PD1 -elements {ua} -no_isolation -source SS_PD1 -diff_supply_only true 
+#set_isolation iso_15 -domain PD1 -elements {ua} -no_isolation -source SS_PD1 -sink SS_PD2 
+# 
+#set_isolation iso_14 -domain PD1 -elements {ua/out1} -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_13 -domain PD1 -elements {ua/out1} -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_12 -domain PD1 -elements {ua/out1} -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_11 -domain PD1 -elements {ua/out1} -source SS_PD1 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_10 -domain PD1 -elements {ua/out1} -sink SS_PD2   -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_9  -domain PD1 -elements {ua/out1} -source SS_PD1 -diff_supply_only true -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+#set_isolation iso_8  -domain PD1 -elements {ua/out*} -source SS_PD1 -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+##set_isolation iso_8  -domain PD1 -elements {ua/out*} -source SS_PD1 -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+
+set_isolation iso_8  -domain PD1 -applies_to outputs -source SS_PD1 -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal {iso_en iso_en1} -isolation_sense high -clamp_value 0 -location self 
+
+#set_isolation iso_8  -domain PD1 -applies_to outputs -source SS_PD1 -sink SS_PD2 -isolation_supply_set SS_TOP -isolation_signal iso_en -isolation_sense high -clamp_value 0 -location parent
+
+##set_isolation iso_7  -domain PD1 -elements {ua/out1} -no_isolation
+##set_isolation iso_6  -domain PD1 -elements {ua/out1} -no_isolation -diff_supply_only true 
+##set_isolation iso_5  -domain PD1 -elements {ua/out1} -no_isolation -sink SS_PD2 
+##set_isolation iso_4  -domain PD1 -elements {ua/out1} -no_isolation -source SS_PD1
+##set_isolation iso_3  -domain PD1 -elements {ua/out1} -no_isolation -sink SS_PD2   -diff_supply_only true
+##set_isolation iso_2  -domain PD1 -elements {ua/out1} -no_isolation -source SS_PD1 -diff_supply_only true 
+##set_isolation iso_1  -domain PD1 -elements {ua/out1} -no_isolation -source SS_PD1 -sink SS_PD2 
+
+# Power switch
+create_power_switch PSW_SS1_SW -domain PD_TOP \
+  -output_supply_port {out VDD} \
+  -input_supply_port {in_1 VDD_power_of_SS1} \
+    -control_port {ctrl_1 U1/sig1} \
+    -on_state {on_in_1 in_1 {!ctrl_1}} \
+  -input_supply_port {in_2 VDD_power_of_SS3} \
+    -control_port {ctrl_2 U1/sig2} \
+    -on_state {on_in_2 in_2 {ctrl_1 && ctrl_2}} \
+  -off_state {off_1 {!ctrl_1 && !ctrl_2}} \
+  -ack_port {ack_1 U1/ack1 ctrl_2} -ack_delay {ack_1 2} \
+  -ack_port {ack_2 U1/ack2} -ack_delay {ack_2 10}
