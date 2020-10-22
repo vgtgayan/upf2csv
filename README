@@ -1,6 +1,25 @@
 #-------------------------------- Project Details ---------------------------------------
     #   Title       : upf2csv converter
-    #   Description : Convert upf code into UGO csv format
-    #   Author      : Gayan VGT (gayan@synopsys.com)
+    #   Description : Convert upf code into csv format
+    #   Author      : Gayan VGT
     #   Started     : 9/01/2020
+#----------------------------------------------------------------------------------------
+#-------------------------------- GIT Details ---------------------------------------
+    #   Remote Repo Name    : upf2csv
+    #   Remote Repo URL     : https://github.com/vgtgayan/upf2csv
+- Add file to staged area
+    >git add <files>
+- Commit files
+    >git commit -m "commit message"
+- Add and commit in one command
+    >git commit -a -m "commit message"
+- Push commited changes to remote Repo
+    >git remote add <remote_repo_name> <url>
+    >git push <remote_repo_name>
+    if doesn't work try below,
+    >git push --set-upstream <remote_repo_name> master
+    You may want to first integrate the remote changes
+    >git pull <remote_repo_name> master
+- Check current status
+    >git status
 #----------------------------------------------------------------------------------------
